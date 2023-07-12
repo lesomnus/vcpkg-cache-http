@@ -23,7 +23,6 @@ func (s *Handler) handleGet(res http.ResponseWriter, req *http.Request, desc Des
 
 	l := log.Ctx(req.Context())
 	if errors.Is(err, ErrNotExist) {
-		l.Warn().Msg("not found")
 		res.WriteHeader(http.StatusNotFound)
 	} else {
 		l.Error().Err(err).Msg("")
