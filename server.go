@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 type Handler struct {
@@ -18,45 +17,52 @@ type Handler struct {
 	IsWritable bool
 }
 
-func (s *Handler) handleGet(res http.ResponseWriter, req *http.Request, desc Description) {
+func (s *Handler) handleGet(res http.ResponseWriter, req *http.Request, desc Description) error {
 	if !s.IsReadable {
 		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
+		return nil
 	}
 
 	err := s.Store.Get(req.Context(), desc, res)
 	if err == nil {
-		return
+		return nil
 	}
 
-	l := log.Ctx(req.Context())
 	if errors.Is(err, ErrNotExist) {
 		res.WriteHeader(http.StatusNotFound)
-	} else {
-		l.Error().Err(err).Msg("")
-		res.WriteHeader(http.StatusInternalServerError)
 	}
+
+	return err
 }
 
-func (s *Handler) handleHead(res http.ResponseWriter, req *http.Request, desc Description) {
-	res.WriteHeader(http.StatusNotImplemented)
+func (s *Handler) handleHead(res http.ResponseWriter, req *http.Request, desc Description) error {
+	err := s.Store.Head(req.Context(), desc)
+	if err == nil {
+		res.WriteHeader(http.StatusOK)
+		return nil
+	}
+
+	if errors.Is(err, ErrNotExist) {
+		res.WriteHeader(http.StatusNotFound)
+		return nil
+	}
+
+	return err
 }
 
-func (s *Handler) handlePut(res http.ResponseWriter, req *http.Request, desc Description) {
+func (s *Handler) handlePut(res http.ResponseWriter, req *http.Request, desc Description) error {
 	if !s.IsWritable {
 		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
+		return nil
 	}
 
 	err := s.Store.Put(req.Context(), desc, req.Body)
 	if err == nil {
 		res.WriteHeader(http.StatusOK)
-		return
+		return nil
 	}
 
-	l := log.Ctx(req.Context())
-	l.Warn().Msg(err.Error())
-	res.WriteHeader(http.StatusInternalServerError)
+	return err
 }
 
 type responseWriter struct {
@@ -118,22 +124,29 @@ func (s *Handler) ServeHTTP(r http.ResponseWriter, req *http.Request) {
 		Str("hash", desc.Hash).
 		Msg("REQ " + req.Method)
 
+	err = nil
 	switch req.Method {
 	case http.MethodGet:
-		s.handleGet(res, req, desc)
+		err = s.handleGet(res, req, desc)
 
 	case http.MethodHead:
-		s.handleHead(res, req, desc)
+		err = s.handleHead(res, req, desc)
 
 	case http.MethodPut:
-		s.handlePut(res, req, desc)
+		err = s.handlePut(res, req, desc)
 	}
 
 	l = l.With().Dur("dt", time.Since(t0)).Int("status", res.status_code).Logger()
 	msg := "RES " + req.Method
-	if res.status_code < 400 {
-		l.Info().Msg(msg)
-	} else {
-		l.Warn().Msg(msg)
+
+	if err != nil {
+		l.Error().Err(err).Msg(msg)
+		return
 	}
+	if res.status_code >= 400 {
+		l.Warn().Msg(msg)
+		return
+	}
+
+	l.Info().Msg(msg)
 }

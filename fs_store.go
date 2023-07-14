@@ -104,6 +104,12 @@ func (s *fsStore) Get(ctx context.Context, desc Description, w io.Writer) error 
 	return err
 }
 
+func (s *fsStore) Head(ctx context.Context, desc Description) error {
+	tgt := s.Resolve(desc)
+	_, err := os.Stat(tgt)
+	return err
+}
+
 func (s *fsStore) Put(ctx context.Context, desc Description, r io.Reader) error {
 	f, err := os.CreateTemp(s.work, "")
 	if err != nil {

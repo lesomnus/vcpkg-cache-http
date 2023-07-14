@@ -61,10 +61,10 @@ WIP
 ## Stores
 
 `vcpkg-cache-http` accepts 1 positional argument that indicates the location to store the binary cache. The store is formed as `kind[:[path][,opt[=val]]]`.
-For example, the default store that stores the binary cache to a directory structured by `/name/version/hash` as follow:
+For example, store that stores the binary cache to a directory where "./path/to/store" is as follow:
 
 ```
-files:vcpkg-cache
+files:./path/to/store
 ```
 
 Available stores are:

@@ -3,7 +3,7 @@ package main_test
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
+	"io"
 	"testing"
 
 	main "github.com/lesomnus/vcpkg-cache-http"
@@ -37,14 +37,20 @@ func (s *StoreTestSuite) SetupTest() {
 	s.store = store
 }
 
-func (s *StoreTestSuite) TestPutAndGet() {
+func (s *StoreTestSuite) TestAll() {
 	ctx := context.Background()
 
-	data := make([]byte, 128)
-	_, err := rand.Read(data)
+	err := s.store.Head(ctx, DescriptionFoo)
+	s.require.ErrorIs(err, main.ErrNotExist)
+
+	err = s.store.Get(ctx, DescriptionFoo, io.Discard)
+	s.require.ErrorIs(err, main.ErrNotExist)
+
+	data := randomData(s.T())
+	err = s.store.Put(ctx, DescriptionFoo, bytes.NewReader(data))
 	s.require.NoError(err)
 
-	err = s.store.Put(ctx, DescriptionFoo, bytes.NewReader(data))
+	err = s.store.Head(ctx, DescriptionFoo)
 	s.require.NoError(err)
 
 	var received bytes.Buffer

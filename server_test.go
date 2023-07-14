@@ -115,6 +115,33 @@ func TestServerGet(t *testing.T) {
 	}))
 }
 
+func TestServerHead(t *testing.T) {
+	t.Parallel()
+
+	t.Run("200 if cache exists", WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
+		t.Parallel()
+		require := require.New(t)
+
+		data := randomData(t)
+		ctx := context.Background()
+		err := store.Put(ctx, DescriptionFoo, bytes.NewReader(data))
+		require.NoError(err)
+
+		require.HTTPStatusCode(handler.ServeHTTP, http.MethodGet, DescriptionFoo.String(), nil, http.StatusOK)
+	}))
+
+	t.Run("404 if cache not exists", WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
+		t.Parallel()
+		require := require.New(t)
+
+		ctx := context.Background()
+		err := store.Head(ctx, DescriptionFoo)
+		require.ErrorIs(err, main.ErrNotExist)
+
+		require.HTTPStatusCode(handler.ServeHTTP, http.MethodGet, DescriptionFoo.String(), nil, http.StatusNotFound)
+	}))
+}
+
 func TestServerPut(t *testing.T) {
 	t.Parallel()
 
