@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	conf, err := ParseArgs(os.Args)
+	conf, err := ParseArgsStrict(os.Args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
@@ -39,13 +39,26 @@ func main() {
 		return
 	}
 
+	handler := &Handler{
+		Store: store,
+		Log:   l,
+
+		IsReadable: true,
+		IsWritable: true,
+	}
+
+	if conf.ReadOnly {
+		handler.IsWritable = false
+		l.Info().Msg("upload disabled")
+	} else if conf.WriteOnly {
+		handler.IsReadable = false
+		l.Info().Msg("download disabled")
+	}
+
 	addr := fmt.Sprintf("%s:%d", conf.Host, conf.Port)
 	server := &http.Server{
-		Addr: addr,
-		Handler: &Handler{
-			Store: store,
-			Log:   l,
-		},
+		Addr:    addr,
+		Handler: handler,
 	}
 
 	l.Info().Str("addr", addr).Msg("start server")

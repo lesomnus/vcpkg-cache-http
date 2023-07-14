@@ -179,6 +179,9 @@ func TestParseArgs(t *testing.T) {
 
 			NoColor: !isatty.IsTerminal(os.Stdout.Fd()),
 			LogJson: false,
+
+			ReadOnly:  false,
+			WriteOnly: false,
 		}
 
 		conf, err := main.ParseArgs([]string{""})
@@ -205,6 +208,9 @@ func TestParseArgs(t *testing.T) {
 
 			NoColor: isatty.IsTerminal(os.Stdout.Fd()),
 			LogJson: true,
+
+			ReadOnly:  true,
+			WriteOnly: true,
 		}
 		conf_path := writeConfig(t, expected)
 
@@ -225,6 +231,9 @@ func TestParseArgs(t *testing.T) {
 
 			NoColor: true,
 			LogJson: true,
+
+			ReadOnly:  true,
+			WriteOnly: true,
 		}
 
 		conf_path := writeConfig(t, &main.AppConfig{
@@ -235,6 +244,9 @@ func TestParseArgs(t *testing.T) {
 
 			NoColor: false,
 			LogJson: false,
+
+			ReadOnly:  false,
+			WriteOnly: false,
 		})
 
 		conf, err := main.ParseArgs([]string{
@@ -244,6 +256,8 @@ func TestParseArgs(t *testing.T) {
 			"-port", "1234",
 			"-no-color",
 			"-log-json",
+			"-read-only",
+			"-write-only",
 		})
 		require.NoError(err)
 		require.NotNil(conf)
@@ -289,5 +303,14 @@ func TestParseArgs(t *testing.T) {
 
 		_, err = main.ParseArgs([]string{"", "-conf", conf_path})
 		require.ErrorContains(err, "unmarshal config")
+	})
+}
+
+func TestParseArgsStrict(t *testing.T) {
+	t.Run("read-only and write-only cannot be set together", func(t *testing.T) {
+		require := require.New(t)
+
+		_, err := main.ParseArgsStrict([]string{"", "-read-only", "-write-only"})
+		require.ErrorContains(err, "cannot be set together")
 	})
 }

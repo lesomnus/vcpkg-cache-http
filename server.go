@@ -13,9 +13,17 @@ import (
 type Handler struct {
 	Store Store
 	Log   zerolog.Logger
+
+	IsReadable bool
+	IsWritable bool
 }
 
 func (s *Handler) handleGet(res http.ResponseWriter, req *http.Request, desc Description) {
+	if !s.IsReadable {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
 	err := s.Store.Get(req.Context(), desc, res)
 	if err == nil {
 		return
@@ -30,7 +38,16 @@ func (s *Handler) handleGet(res http.ResponseWriter, req *http.Request, desc Des
 	}
 }
 
+func (s *Handler) handleHead(res http.ResponseWriter, req *http.Request, desc Description) {
+	res.WriteHeader(http.StatusNotImplemented)
+}
+
 func (s *Handler) handlePut(res http.ResponseWriter, req *http.Request, desc Description) {
+	if !s.IsWritable {
+		res.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
 	err := s.Store.Put(req.Context(), desc, req.Body)
 	if err == nil {
 		res.WriteHeader(http.StatusOK)
@@ -61,11 +78,12 @@ func (s *Handler) parseDescription(res http.ResponseWriter, req *http.Request) (
 
 	switch req.Method {
 	case http.MethodGet:
+	case http.MethodHead:
 	case http.MethodPut:
 		break
 
 	default:
-		res.WriteHeader(http.StatusMethodNotAllowed)
+		res.WriteHeader(http.StatusNotImplemented)
 		return Description{}, errors.New("invalid method")
 	}
 
@@ -103,6 +121,9 @@ func (s *Handler) ServeHTTP(r http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodGet:
 		s.handleGet(res, req, desc)
+
+	case http.MethodHead:
+		s.handleHead(res, req, desc)
 
 	case http.MethodPut:
 		s.handlePut(res, req, desc)

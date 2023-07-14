@@ -24,6 +24,9 @@ func WithHandler(f func(t *testing.T, store main.Store, handler *main.Handler)) 
 		handler := main.Handler{
 			Store: store,
 			Log:   zerolog.New(io.Discard),
+
+			IsReadable: true,
+			IsWritable: true,
 		}
 
 		f(t, store, &handler)
@@ -40,6 +43,16 @@ func WithServer(f func(t *testing.T, store main.Store, client *http.Client, url 
 
 }
 
+func randomData(t *testing.T) []byte {
+	require := require.New(t)
+
+	data := make([]byte, 128)
+	_, err := rand.Read(data)
+	require.NoError(err)
+
+	return data
+}
+
 func TestServerGet(t *testing.T) {
 	t.Parallel()
 
@@ -47,12 +60,9 @@ func TestServerGet(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		data := make([]byte, 128)
-		_, err := rand.Read(data)
-		require.NoError(err)
-
+		data := randomData(t)
 		ctx := context.Background()
-		err = store.Put(ctx, DescriptionFoo, bytes.NewReader(data))
+		err := store.Put(ctx, DescriptionFoo, bytes.NewReader(data))
 		require.NoError(err)
 
 		res, err := client.Get(url + DescriptionFoo.String())
@@ -89,6 +99,20 @@ func TestServerGet(t *testing.T) {
 			require.HTTPStatusCode(handler.ServeHTTP, http.MethodGet, path, nil, http.StatusNotFound)
 		}
 	}))
+
+	t.Run("405 if not readable", WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
+		t.Parallel()
+		require := require.New(t)
+
+		data := randomData(t)
+		ctx := context.Background()
+		err := store.Put(ctx, DescriptionFoo, bytes.NewReader(data))
+		require.NoError(err)
+
+		handler.IsReadable = false
+
+		require.HTTPStatusCode(handler.ServeHTTP, http.MethodGet, DescriptionFoo.String(), nil, http.StatusMethodNotAllowed)
+	}))
 }
 
 func TestServerPut(t *testing.T) {
@@ -98,10 +122,7 @@ func TestServerPut(t *testing.T) {
 		t.Parallel()
 		require := require.New(t)
 
-		data := make([]byte, 128)
-		_, err := rand.Read(data)
-		require.NoError(err)
-
+		data := randomData(t)
 		req, err := http.NewRequest(http.MethodPut, url+DescriptionFoo.String(), bytes.NewReader(data))
 		require.NoError(err)
 
@@ -116,6 +137,29 @@ func TestServerPut(t *testing.T) {
 		require.NoError(err)
 		require.Equal(data, received.Bytes())
 	}))
+
+	t.Run("405 if not readable", WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
+		t.Parallel()
+		require := require.New(t)
+
+		server := httptest.NewServer(handler)
+		defer server.Close()
+
+		handler.IsWritable = false
+
+		data := randomData(t)
+		req, err := http.NewRequest(http.MethodPut, server.URL+DescriptionFoo.String(), bytes.NewReader(data))
+		require.NoError(err)
+
+		res, err := server.Client().Do(req)
+		require.NoError(err)
+		defer res.Body.Close()
+		require.Equal(http.StatusMethodNotAllowed, res.StatusCode)
+
+		ctx := context.Background()
+		err = store.Get(ctx, DescriptionFoo, io.Discard)
+		require.ErrorIs(err, main.ErrNotExist)
+	}))
 }
 
 func TestServerInvalidMethod(t *testing.T) {
@@ -124,7 +168,7 @@ func TestServerInvalidMethod(t *testing.T) {
 	require := require.New(t)
 	methods := []string{
 		// http.MethodGet,
-		http.MethodHead,
+		// http.MethodHead,
 		http.MethodPost,
 		// http.MethodPut,
 		http.MethodPatch,
@@ -132,11 +176,12 @@ func TestServerInvalidMethod(t *testing.T) {
 		http.MethodConnect,
 		http.MethodOptions,
 		http.MethodTrace,
+		"FOO",
 	}
 
 	WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
 		for _, method := range methods {
-			require.HTTPStatusCode(handler.ServeHTTP, method, DescriptionFoo.String(), nil, http.StatusMethodNotAllowed)
+			require.HTTPStatusCode(handler.ServeHTTP, method, DescriptionFoo.String(), nil, http.StatusNotImplemented)
 		}
 	})(t)
 }

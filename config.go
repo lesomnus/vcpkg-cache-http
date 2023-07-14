@@ -20,6 +20,9 @@ type AppConfig struct {
 
 	NoColor bool `json:"no_color"`
 	LogJson bool `json:"log_json"`
+
+	ReadOnly  bool `json:"read_only`
+	WriteOnly bool `json:"write_only"`
 }
 
 type StoreConfig struct {
@@ -122,6 +125,8 @@ func ParseArgs(args []string) (*AppConfig, error) {
 	flags.UintVar(&conf_given.Port, "port", uint(15151), "port to listen")
 	flags.BoolVar(&conf_given.NoColor, "no-color", !isatty.IsTerminal(os.Stdout.Fd()), "disable color print; set by default if output is not a terminal")
 	flags.BoolVar(&conf_given.LogJson, "log-json", false, "log in JSON format")
+	flags.BoolVar(&conf_given.ReadOnly, "read-only", false, "")
+	flags.BoolVar(&conf_given.WriteOnly, "write-only", false, "")
 	flags.Parse(args[1:])
 
 	switch flags.NArg() {
@@ -163,8 +168,25 @@ func ParseArgs(args []string) (*AppConfig, error) {
 			conf.NoColor = conf_given.NoColor
 		case "log-json":
 			conf.LogJson = conf_given.LogJson
+		case "read-only":
+			conf.ReadOnly = conf_given.ReadOnly
+		case "write-only":
+			conf.WriteOnly = conf_given.WriteOnly
 		}
 	})
+
+	return conf, nil
+}
+
+func ParseArgsStrict(args []string) (*AppConfig, error) {
+	conf, err := ParseArgs(args)
+	if err != nil {
+		return nil, err
+	}
+
+	if conf.ReadOnly && conf.WriteOnly {
+		return nil, errors.New("read-only and write-only cannot be set together")
+	}
 
 	return conf, nil
 }
