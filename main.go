@@ -26,11 +26,11 @@ func main() {
 
 	if conf.Store == nil {
 		conf.Store = &StoreConfig{
-			Kind: "file",
+			Kind: "files",
 			Path: "vcpkg-cache",
 			Opts: map[string]string{},
 		}
-		l.Info().Str("store", "file:vcpkg-cache").Msg("use default store")
+		l.Info().Str("store", conf.Store.String()).Msg("use default store")
 	}
 
 	store, err := NewStore(conf.Store)

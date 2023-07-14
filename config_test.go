@@ -11,6 +11,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestStoreConfigString(t *testing.T) {
+	require := require.New(t)
+
+	opts_kv := map[string]string{"opt1": "val1", "opt2": "val2"}
+	opts_k_only := map[string]string{"opt1": "", "opt2": ""}
+
+	tcs := []*main.StoreConfig{
+		{Kind: "kind", Path: "path", Opts: map[string]string{}},
+		{Kind: "kind", Path: "", Opts: opts_kv},
+		{Kind: "kind", Path: "path", Opts: opts_kv},
+		{Kind: "kind", Path: "", Opts: opts_k_only},
+		{Kind: "kind", Path: "path", Opts: opts_k_only},
+	}
+	for _, tc := range tcs {
+		conf, err := main.ParseStoreConfig(tc.String())
+		require.NoError(err)
+		require.Equal(tc, conf)
+	}
+}
+
 func TestParseBackendConfig(t *testing.T) {
 	require := require.New(t)
 
@@ -117,6 +137,11 @@ func TestParseBackendConfigFail(t *testing.T) {
 			{given: ":path"},
 			{given: ":path,opt1=val1"},
 			{given: ":,opt1=val1"},
+			{given: ",opt1=val1"},
+			{given: ",opt1"},
+			{given: ","},
+			{given: "opt1=val1"},
+			{given: "opt1="},
 		}
 		for _, test_case := range test_cases {
 			_, err := main.ParseStoreConfig(test_case.given)

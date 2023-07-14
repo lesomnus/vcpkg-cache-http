@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/mattn/go-isatty"
@@ -27,10 +28,27 @@ type StoreConfig struct {
 	Opts map[string]string `json:"opts"`
 }
 
+func (c *StoreConfig) String() string {
+	rst := fmt.Sprintf("%s:%s", c.Kind, c.Path)
+	for k, v := range c.Opts {
+		if v == "" {
+			rst += fmt.Sprintf(",%s", k)
+		} else {
+			rst += fmt.Sprintf(",%s=%s", k, v)
+		}
+	}
+
+	return rst
+}
+
 func ParseStoreConfig(s string) (*StoreConfig, error) {
 	entries := strings.SplitN(s, ":", 2)
 	if entries[0] == "" {
 		return nil, errors.New("kind must be specified")
+	}
+
+	if strings.ContainsAny(entries[0], ",=") {
+		return nil, errors.New("invalid kind value")
 	}
 
 	if len(entries) != 2 {
@@ -68,8 +86,22 @@ func ParseStoreConfig(s string) (*StoreConfig, error) {
 
 func NewStore(conf *StoreConfig) (Store, error) {
 	switch conf.Kind {
-	case "file":
+	case "files":
 		return NewFsStore(conf.Path)
+
+	case "archives":
+		p := conf.Path
+		if p == "" {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return nil, fmt.Errorf("get home directory: %w", err)
+			}
+
+			p = filepath.Join(home, ".cache", "vcpkg", "archives")
+		}
+		return NewFsStore(p, WithPathResolve(func(desc Description) string {
+			return filepath.Join(desc.Hash[0:2], desc.Hash+".zip")
+		}))
 
 	default:
 		return nil, fmt.Errorf("kind not supported: %s", conf.Kind)

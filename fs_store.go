@@ -8,9 +8,15 @@ import (
 	"path/filepath"
 )
 
+func fsStoreDefaultResolve(desc Description) string {
+	return filepath.Join(desc.Name, desc.Version, desc.Hash)
+}
+
 type fsStore struct {
 	root string
 	work string
+
+	resolve func(desc Description) string
 }
 
 type fsOption func(s *fsStore)
@@ -18,6 +24,12 @@ type fsOption func(s *fsStore)
 func WithWorkDir(p string) fsOption {
 	return func(s *fsStore) {
 		s.work = p
+	}
+}
+
+func WithPathResolve(resolve func(desc Description) string) fsOption {
+	return func(s *fsStore) {
+		s.resolve = resolve
 	}
 }
 
@@ -29,6 +41,9 @@ func NewFsStore(root string, opts ...fsOption) (*fsStore, error) {
 
 	if s.work == "" {
 		s.work = filepath.Join(s.root, ".work")
+	}
+	if s.resolve == nil {
+		s.resolve = fsStoreDefaultResolve
 	}
 
 	if err := os.MkdirAll(s.root, 0744); err != nil {
@@ -72,12 +87,12 @@ func NewFsStore(root string, opts ...fsOption) (*fsStore, error) {
 	return s, nil
 }
 
-func (s *fsStore) makePath(desc Description) string {
-	return filepath.Join(s.root, desc.Name, desc.Version, desc.Hash)
+func (s *fsStore) Resolve(desc Description) string {
+	return filepath.Join(s.root, s.resolve(desc))
 }
 
 func (s *fsStore) Get(ctx context.Context, desc Description, w io.Writer) error {
-	tgt := s.makePath(desc)
+	tgt := s.Resolve(desc)
 	f, err := os.OpenFile(tgt, os.O_RDONLY, 0)
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
@@ -100,7 +115,7 @@ func (s *fsStore) Put(ctx context.Context, desc Description, r io.Reader) error 
 		return err
 	}
 
-	tgt := s.makePath(desc)
+	tgt := s.Resolve(desc)
 	if err := os.MkdirAll(filepath.Dir(tgt), 0744); err != nil {
 		return fmt.Errorf("create target directory: %w", err)
 	}
