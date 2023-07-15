@@ -1,0 +1,25 @@
+name: test
+
+on:
+  pull_request:
+    paths:
+      - "**/*.go"
+  push:
+    paths:
+      - "**/*.go"
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+
+      - run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+      - uses: codacy/codacy-coverage-reporter-action@v1.3.0
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: ./coverage.txt
