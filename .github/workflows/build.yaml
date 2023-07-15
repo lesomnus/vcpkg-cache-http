@@ -9,6 +9,8 @@ jobs:
   test:
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v3
+      - uses: docker/setup-qemu-action@v2
       - uses: docker/setup-buildx-action@v2
 
       - name: Login GHCR
@@ -21,5 +23,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
+          context: .
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ghcr.io/lesomnus/vcpkg-cache-http:edge
