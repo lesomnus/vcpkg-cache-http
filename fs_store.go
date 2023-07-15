@@ -53,6 +53,12 @@ func NewFsStore(root string, opts ...fsOption) (*fsStore, error) {
 		return nil, fmt.Errorf("create work directory: %w", err)
 	}
 
+	if p, err := os.MkdirTemp(s.work, ""); err != nil {
+		return nil, fmt.Errorf("create work context at work directory: %w", err)
+	} else {
+		s.work = p
+	}
+
 	test_src := filepath.Join(s.work, ".test")
 	test_dst := filepath.Join(s.root, ".test")
 
@@ -130,4 +136,8 @@ func (s *fsStore) Put(ctx context.Context, desc Description, r io.Reader) error 
 	}
 
 	return nil
+}
+
+func (s *fsStore) Close() error {
+	return os.Remove(s.work)
 }

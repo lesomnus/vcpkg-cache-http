@@ -20,4 +20,6 @@ type Store interface {
 	Get(ctx context.Context, desc Description, w io.Writer) error
 	Head(ctx context.Context, desc Description) error
 	Put(ctx context.Context, desc Description, r io.Reader) error
+
+	Close() error
 }

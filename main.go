@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -38,6 +41,12 @@ func main() {
 		l.Fatal().Err(err).Msg("failed to initialize a store")
 		return
 	}
+	defer func() {
+		err := store.Close()
+		if err != nil {
+			l.Error().Err(err).Msg("failed to close the store")
+		}
+	}()
 
 	handler := &Handler{
 		Store: store,
@@ -61,8 +70,33 @@ func main() {
 		Handler: handler,
 	}
 
+	server_closed := make(chan struct{})
+	defer close(server_closed)
+
+	go func() {
+		signals := make(chan os.Signal, 1)
+		signal.Notify(signals, os.Interrupt)
+
+		for {
+			select {
+			case <-server_closed:
+				return
+
+			case sig := <-signals:
+				l.Warn().Str("signal", sig.String()).Msg("shutdown the server")
+				if err := server.Shutdown(context.Background()); err != nil {
+					l.Error().Err(err).Msg("failed to shutdown the server")
+				}
+			}
+		}
+	}()
+
 	l.Info().Str("addr", addr).Msg("start server")
 	if err := server.ListenAndServe(); err != nil {
-		fmt.Println(err)
+		if errors.Is(err, http.ErrServerClosed) {
+			l.Info().Msg("server closed gracefully")
+		} else {
+			l.Error().Err(err).Msg("unexpected server close")
+		}
 	}
 }

@@ -1,9 +1,12 @@
 package main_test
 
 import (
+	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	main "github.com/lesomnus/vcpkg-cache-http"
 	"github.com/stretchr/testify/require"
@@ -63,7 +66,7 @@ func TestFsStoreFail(t *testing.T) {
 		require.NoError(err)
 
 		_, err = main.NewFsStore(t.TempDir(), main.WithWorkDir(work))
-		require.ErrorContains(err, "create file at work")
+		require.ErrorIs(err, os.ErrPermission)
 	})
 
 	t.Run("file cannot be renamed from work to store directory", func(t *testing.T) {
@@ -76,5 +79,25 @@ func TestFsStoreFail(t *testing.T) {
 
 		_, err = main.NewFsStore(root, main.WithWorkDir(t.TempDir()))
 		require.ErrorContains(err, "rename file")
+	})
+
+	t.Run("store cannot be closed if the work left", func(t *testing.T) {
+		t.Parallel()
+		require := require.New(t)
+
+		store, err := main.NewFsStore(t.TempDir())
+		require.NoError(err)
+
+		r, w := io.Pipe()
+		go store.Put(context.Background(), DescriptionFoo, r)
+
+		time.Sleep(time.Millisecond * 10)
+		err = store.Close()
+		require.ErrorContains(err, "not empty")
+
+		w.Close()
+		time.Sleep(time.Millisecond * 10)
+		err = store.Close()
+		require.NoError(err)
 	})
 }
