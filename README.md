@@ -1,4 +1,8 @@
 # vcpkg-cache-http
+[![build](https://github.com/lesomnus/vcpkg-cache-http/actions/workflows/build.yaml/badge.svg)](https://github.com/lesomnus/vcpkg-cache-http/actions/workflows/build.yaml)
+[![test](https://github.com/lesomnus/vcpkg-cache-http/actions/workflows/test.yaml/badge.svg)](https://github.com/lesomnus/vcpkg-cache-http/actions/workflows/test.yaml)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/8535edf4b4af4238a2140994efe99d55)](https://app.codacy.com/gh/lesomnus/vcpkg-cache-http/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+[![Codacy Badge](https://app.codacy.com/project/badge/Coverage/8535edf4b4af4238a2140994efe99d55)](https://app.codacy.com/gh/lesomnus/vcpkg-cache-http/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
 
 HTTP provider for [*vcpkg*](https://github.com/microsoft/vcpkg) binary caching.
 ```sh
@@ -54,9 +58,11 @@ go install github.com/lesomnus/vcpkg-cache-http@latest
 ```
 
 ### Docker
+```sh
+docker pull ghcr.io/lesomnus/vcpkg-cache-http:edge 
+```
 
-WIP
-
+Currently, only `edge` tags built from the `main` branch is provided.
 
 ## Stores
 

@@ -120,13 +120,36 @@ func ParseArgs(args []string) (*AppConfig, error) {
 		conf_given = AppConfig{}
 	)
 
+	flags.Usage = func() {
+		fmt.Printf("Usage: %s [Flags] [Store]\n", args[0])
+
+		fmt.Printf(`
+Store:
+  Specify the location to store the binary cache in the format:
+
+    kind[:[path][,opt[=val]]]
+
+  Available stores are:
+    
+    files:[vcpkg-cache]
+      Stores to a directory at the given path. This is a default store.
+
+    archives:[${HOME}/.cache/vcpkg/archives]
+      Use vcpkg "files" provider at the given path as a store.
+
+`)
+
+		fmt.Println("Flags:")
+		flags.PrintDefaults()
+	}
+
 	flags.StringVar(&conf_path, "conf", "", "path to a config file")
 	flags.StringVar(&conf_given.Host, "host", "0.0.0.0", "host to listen")
 	flags.UintVar(&conf_given.Port, "port", uint(15151), "port to listen")
 	flags.BoolVar(&conf_given.NoColor, "no-color", !isatty.IsTerminal(os.Stdout.Fd()), "disable color print; set by default if output is not a terminal")
 	flags.BoolVar(&conf_given.LogJson, "log-json", false, "log in JSON format")
-	flags.BoolVar(&conf_given.ReadOnly, "read-only", false, "")
-	flags.BoolVar(&conf_given.WriteOnly, "write-only", false, "")
+	flags.BoolVar(&conf_given.ReadOnly, "read-only", false, "enable read-only mode, restricting write operations")
+	flags.BoolVar(&conf_given.WriteOnly, "write-only", false, "enable write-only mode, restricting read operations")
 	flags.Parse(args[1:])
 
 	switch flags.NArg() {
