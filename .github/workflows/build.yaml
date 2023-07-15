@@ -1,9 +1,11 @@
-name: test
+name: build
 
 on:
   push:
     branches:
       - main
+    paths:
+      - "**/*.go"
 
 jobs:
   test:
