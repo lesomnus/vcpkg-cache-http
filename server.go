@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,8 +37,9 @@ func (s *Handler) handleGet(res http.ResponseWriter, req *http.Request, desc Des
 }
 
 func (s *Handler) handleHead(res http.ResponseWriter, req *http.Request, desc Description) error {
-	err := s.Store.Head(req.Context(), desc)
+	size, err := s.Store.Head(req.Context(), desc)
 	if err == nil {
+		res.Header().Add("Content-Length", strconv.FormatInt(int64(size), 10))
 		res.WriteHeader(http.StatusOK)
 		return nil
 	}
@@ -101,6 +103,12 @@ func (s *Handler) parseDescription(res http.ResponseWriter, req *http.Request) (
 }
 
 func (s *Handler) ServeHTTP(r http.ResponseWriter, req *http.Request) {
+	if (req.URL.Path == "/") && (req.Method == http.MethodGet) {
+		s.Log.Info().Msg("probe")
+		r.WriteHeader(http.StatusOK)
+		return
+	}
+
 	t0 := time.Now()
 	res := &responseWriter{r, http.StatusOK}
 

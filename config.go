@@ -21,7 +21,7 @@ type AppConfig struct {
 	NoColor bool `json:"no_color"`
 	LogJson bool `json:"log_json"`
 
-	ReadOnly  bool `json:"read_only`
+	ReadOnly  bool `json:"read_only"`
 	WriteOnly bool `json:"write_only"`
 }
 

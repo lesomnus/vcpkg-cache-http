@@ -110,13 +110,21 @@ func (s *fsStore) Get(ctx context.Context, desc Description, w io.Writer) error 
 	return err
 }
 
-func (s *fsStore) Head(ctx context.Context, desc Description) error {
+func (s *fsStore) Head(ctx context.Context, desc Description) (int, error) {
 	tgt := s.Resolve(desc)
-	_, err := os.Stat(tgt)
-	return err
+	info, err := os.Stat(tgt)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(info.Size()), nil
 }
 
 func (s *fsStore) Put(ctx context.Context, desc Description, r io.Reader) error {
+	if err := os.MkdirAll(s.work, 0744); err != nil {
+		return fmt.Errorf("create work directory: %w", err)
+	}
+
 	f, err := os.CreateTemp(s.work, "")
 	if err != nil {
 		return fmt.Errorf("create temp file: %w", err)

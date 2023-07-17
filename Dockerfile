@@ -18,3 +18,4 @@ ENTRYPOINT ["/vcpkg-cache-http"]
 
 EXPOSE 15151/tcp
 VOLUME ["/vcpkg-cache"]
+STOPSIGNAL SIGINT

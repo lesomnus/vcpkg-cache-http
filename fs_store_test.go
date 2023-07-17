@@ -1,6 +1,7 @@
 package main_test
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"os"
@@ -24,15 +25,11 @@ func (s *FsStoreSetup) New(t *testing.T) (main.Store, error) {
 }
 
 func TestFsStoreSuite(t *testing.T) {
-	t.Parallel()
 	suite.Run(t, &StoreTestSuite{Store: &FsStoreSetup{}})
 }
 
 func TestFsStoreNew(t *testing.T) {
-	t.Parallel()
-
 	t.Run("create store directory if it does not exist", func(t *testing.T) {
-		t.Parallel()
 		require := require.New(t)
 
 		root := filepath.Join(t.TempDir(), "foo", "bar")
@@ -42,11 +39,45 @@ func TestFsStoreNew(t *testing.T) {
 	})
 }
 
-func TestFsStoreFail(t *testing.T) {
-	t.Parallel()
+func TestFsStore(t *testing.T) {
+	t.Run("work directory is created if not exist", func(t *testing.T) {
+		require := require.New(t)
 
+		root := t.TempDir()
+		work := filepath.Join(root, "foo")
+
+		_, err := os.Stat(work)
+		require.ErrorIs(err, os.ErrNotExist)
+
+		_, err = main.NewFsStore(root, main.WithWorkDir(work))
+		require.NoError(err)
+
+		_, err = os.Stat(work)
+		require.NoError(err)
+	})
+
+	t.Run("work directory is created if it is removed", func(t *testing.T) {
+		require := require.New(t)
+
+		root := t.TempDir()
+		work := filepath.Join(root, "foo")
+
+		store, err := main.NewFsStore(root, main.WithWorkDir(work))
+		require.NoError(err)
+
+		err = os.RemoveAll(work)
+		require.NoError(err)
+
+		err = store.Put(context.Background(), DescriptionFoo, bytes.NewReader([]byte{}))
+		require.NoError(err)
+
+		_, err = os.Stat(work)
+		require.NoError(err)
+	})
+}
+
+func TestFsStoreFail(t *testing.T) {
 	t.Run("it cannot create store directory", func(t *testing.T) {
-		t.Parallel()
 		require := require.New(t)
 
 		root := filepath.Join(t.TempDir(), "foo")
@@ -58,7 +89,6 @@ func TestFsStoreFail(t *testing.T) {
 	})
 
 	t.Run("file cannot be created in work directory", func(t *testing.T) {
-		t.Parallel()
 		require := require.New(t)
 
 		work := filepath.Join(t.TempDir(), "foo")
@@ -70,7 +100,6 @@ func TestFsStoreFail(t *testing.T) {
 	})
 
 	t.Run("file cannot be renamed from work to store directory", func(t *testing.T) {
-		t.Parallel()
 		require := require.New(t)
 
 		root := filepath.Join(t.TempDir(), "foo")
@@ -82,7 +111,6 @@ func TestFsStoreFail(t *testing.T) {
 	})
 
 	t.Run("store cannot be closed if the work left", func(t *testing.T) {
-		t.Parallel()
 		require := require.New(t)
 
 		store, err := main.NewFsStore(t.TempDir())

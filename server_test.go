@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	main "github.com/lesomnus/vcpkg-cache-http"
@@ -33,16 +34,6 @@ func WithHandler(f func(t *testing.T, store main.Store, handler *main.Handler)) 
 	}
 }
 
-func WithServer(f func(t *testing.T, store main.Store, client *http.Client, url string)) func(*testing.T) {
-	return WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
-		server := httptest.NewServer(handler)
-		defer server.Close()
-
-		f(t, store, server.Client(), server.URL)
-	})
-
-}
-
 func randomData(t *testing.T) []byte {
 	require := require.New(t)
 
@@ -53,21 +44,27 @@ func randomData(t *testing.T) []byte {
 	return data
 }
 
-func TestServerGet(t *testing.T) {
-	t.Parallel()
+func TestServerProbe(t *testing.T) {
+	WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
+		require := require.New(t)
+		require.HTTPStatusCode(handler.ServeHTTP, http.MethodGet, "/", nil, http.StatusOK)
+	})(t)
+}
 
-	t.Run("200 if cache hit", WithServer(func(t *testing.T, store main.Store, client *http.Client, url string) {
-		t.Parallel()
+func TestServerGet(t *testing.T) {
+	t.Run("200 if cache hit", WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
 		require := require.New(t)
 
 		data := randomData(t)
-		ctx := context.Background()
-		err := store.Put(ctx, DescriptionFoo, bytes.NewReader(data))
+		err := store.Put(context.Background(), DescriptionFoo, bytes.NewReader(data))
 		require.NoError(err)
 
-		res, err := client.Get(url + DescriptionFoo.String())
-		require.NoError(err)
-		defer res.Body.Close()
+		req := httptest.NewRequest(http.MethodGet, DescriptionFoo.String(), nil)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+
+		res := w.Result()
+		require.Equal(http.StatusOK, res.StatusCode)
 
 		received, err := io.ReadAll(res.Body)
 		require.NoError(err)
@@ -75,7 +72,6 @@ func TestServerGet(t *testing.T) {
 	}))
 
 	t.Run("404 if cache not exists", WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
-		t.Parallel()
 		require := require.New(t)
 
 		ctx := context.Background()
@@ -86,7 +82,6 @@ func TestServerGet(t *testing.T) {
 	}))
 
 	t.Run("404 if path invalid", WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
-		t.Parallel()
 		require := require.New(t)
 
 		paths := []string{
@@ -101,7 +96,6 @@ func TestServerGet(t *testing.T) {
 	}))
 
 	t.Run("405 if not readable", WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
-		t.Parallel()
 		require := require.New(t)
 
 		data := randomData(t)
@@ -116,10 +110,7 @@ func TestServerGet(t *testing.T) {
 }
 
 func TestServerHead(t *testing.T) {
-	t.Parallel()
-
 	t.Run("200 if cache exists", WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
-		t.Parallel()
 		require := require.New(t)
 
 		data := randomData(t)
@@ -127,71 +118,63 @@ func TestServerHead(t *testing.T) {
 		err := store.Put(ctx, DescriptionFoo, bytes.NewReader(data))
 		require.NoError(err)
 
-		require.HTTPStatusCode(handler.ServeHTTP, http.MethodGet, DescriptionFoo.String(), nil, http.StatusOK)
+		req := httptest.NewRequest(http.MethodHead, DescriptionFoo.String(), nil)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+
+		res := w.Result()
+		require.Equal(http.StatusOK, res.StatusCode)
+		require.Equal(strconv.FormatInt(int64(len(data)), 10), res.Header.Get("Content-Length"))
 	}))
 
 	t.Run("404 if cache not exists", WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
-		t.Parallel()
 		require := require.New(t)
 
 		ctx := context.Background()
-		err := store.Head(ctx, DescriptionFoo)
+		_, err := store.Head(ctx, DescriptionFoo)
 		require.ErrorIs(err, main.ErrNotExist)
 
-		require.HTTPStatusCode(handler.ServeHTTP, http.MethodGet, DescriptionFoo.String(), nil, http.StatusNotFound)
+		require.HTTPStatusCode(handler.ServeHTTP, http.MethodHead, DescriptionFoo.String(), nil, http.StatusNotFound)
 	}))
 }
 
 func TestServerPut(t *testing.T) {
-	t.Parallel()
-
-	t.Run("cache will hit after PUT", WithServer(func(t *testing.T, store main.Store, client *http.Client, url string) {
-		t.Parallel()
+	t.Run("cache will hit after PUT", WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
 		require := require.New(t)
 
 		data := randomData(t)
-		req, err := http.NewRequest(http.MethodPut, url+DescriptionFoo.String(), bytes.NewReader(data))
-		require.NoError(err)
+		req := httptest.NewRequest(http.MethodPut, DescriptionFoo.String(), bytes.NewReader(data))
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
 
-		res, err := client.Do(req)
-		require.NoError(err)
-		defer res.Body.Close()
+		res := w.Result()
 		require.Equal(http.StatusOK, res.StatusCode)
 
-		ctx := context.Background()
 		var received bytes.Buffer
-		err = store.Get(ctx, DescriptionFoo, &received)
+		err := store.Get(context.Background(), DescriptionFoo, &received)
 		require.NoError(err)
 		require.Equal(data, received.Bytes())
 	}))
 
 	t.Run("405 if not readable", WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
-		t.Parallel()
 		require := require.New(t)
-
-		server := httptest.NewServer(handler)
-		defer server.Close()
 
 		handler.IsWritable = false
 
 		data := randomData(t)
-		req, err := http.NewRequest(http.MethodPut, server.URL+DescriptionFoo.String(), bytes.NewReader(data))
-		require.NoError(err)
+		req := httptest.NewRequest(http.MethodPut, DescriptionFoo.String(), bytes.NewReader(data))
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
 
-		res, err := server.Client().Do(req)
-		require.NoError(err)
-		defer res.Body.Close()
+		res := w.Result()
 		require.Equal(http.StatusMethodNotAllowed, res.StatusCode)
 
-		ctx := context.Background()
-		err = store.Get(ctx, DescriptionFoo, io.Discard)
+		err := store.Get(context.Background(), DescriptionFoo, io.Discard)
 		require.ErrorIs(err, main.ErrNotExist)
 	}))
 }
 
 func TestServerInvalidMethod(t *testing.T) {
-	t.Parallel()
-
 	require := require.New(t)
 	methods := []string{
 		// http.MethodGet,

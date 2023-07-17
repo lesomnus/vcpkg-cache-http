@@ -40,7 +40,7 @@ func (s *StoreTestSuite) SetupTest() {
 func (s *StoreTestSuite) TestAll() {
 	ctx := context.Background()
 
-	err := s.store.Head(ctx, DescriptionFoo)
+	_, err := s.store.Head(ctx, DescriptionFoo)
 	s.require.ErrorIs(err, main.ErrNotExist)
 
 	err = s.store.Get(ctx, DescriptionFoo, io.Discard)
@@ -50,8 +50,9 @@ func (s *StoreTestSuite) TestAll() {
 	err = s.store.Put(ctx, DescriptionFoo, bytes.NewReader(data))
 	s.require.NoError(err)
 
-	err = s.store.Head(ctx, DescriptionFoo)
+	size, err := s.store.Head(ctx, DescriptionFoo)
 	s.require.NoError(err)
+	s.require.Equal(len(data), size)
 
 	var received bytes.Buffer
 	err = s.store.Get(ctx, DescriptionFoo, &received)
