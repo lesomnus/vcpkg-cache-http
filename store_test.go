@@ -60,10 +60,20 @@ func (s *StoreTestSuite) TestAll() {
 	s.require.Equal(data, received.Bytes())
 }
 
-func (s *StoreTestSuite) TestGetNotExists() {
+func (s *StoreTestSuite) TestGetNotExist() {
 	ctx := context.Background()
 
 	var received bytes.Buffer
 	err := s.store.Get(ctx, DescriptionFoo, &received)
 	s.require.ErrorIs(err, main.ErrNotExist)
+}
+
+func (s *StoreTestSuite) TestPutAlreadyExist() {
+	ctx := context.Background()
+
+	err := s.store.Put(ctx, DescriptionFoo, bytes.NewReader(randomData(s.T())))
+	s.require.NoError(err)
+
+	err = s.store.Put(ctx, DescriptionFoo, bytes.NewReader(randomData(s.T())))
+	s.require.ErrorIs(err, main.ErrExist)
 }

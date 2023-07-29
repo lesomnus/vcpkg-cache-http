@@ -62,12 +62,12 @@ go install github.com/lesomnus/vcpkg-cache-http@latest
 docker pull ghcr.io/lesomnus/vcpkg-cache-http:edge 
 ```
 
-Currently, only `edge` tags built from the `main` branch is provided.
+Currently, only `edge` tag built from the `main` branch is provided.
 
 ## Stores
 
 `vcpkg-cache-http` accepts 1 positional argument that indicates the location to store the binary cache. The store is formed as `kind[:[path][,opt[=val]]]`.
-For example, store that stores the binary cache to a directory where "./path/to/store" is as follow:
+For example, store that stores the binary cache to a directory where `./path/to/store` is as follow:
 
 ```
 files:./path/to/store

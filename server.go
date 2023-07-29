@@ -64,6 +64,11 @@ func (s *Handler) handlePut(res http.ResponseWriter, req *http.Request, desc Des
 		return nil
 	}
 
+	if errors.Is(err, ErrExist) {
+		res.WriteHeader(http.StatusConflict)
+		return nil
+	}
+
 	return err
 }
 
