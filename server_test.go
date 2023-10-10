@@ -172,6 +172,29 @@ func TestServerPut(t *testing.T) {
 		err := store.Get(context.Background(), DescriptionFoo, io.Discard)
 		require.ErrorIs(err, main.ErrNotExist)
 	}))
+
+	t.Run("409 if cache already exist", WithHandler(func(t *testing.T, store main.Store, handler *main.Handler) {
+		require := require.New(t)
+
+		data := randomData(t)
+		{
+			req := httptest.NewRequest(http.MethodPut, DescriptionFoo.String(), bytes.NewReader(data))
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+
+			res := w.Result()
+			require.Equal(http.StatusOK, res.StatusCode)
+		}
+
+		{
+			req := httptest.NewRequest(http.MethodPut, DescriptionFoo.String(), bytes.NewReader(data))
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+
+			res := w.Result()
+			require.Equal(http.StatusConflict, res.StatusCode)
+		}
+	}))
 }
 
 func TestServerInvalidMethod(t *testing.T) {

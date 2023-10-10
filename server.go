@@ -107,9 +107,22 @@ func (s *Handler) parseDescription(res http.ResponseWriter, req *http.Request) (
 	}, nil
 }
 
+func getRemoteAddr(req *http.Request) string {
+	addr := req.Header.Get("X-Real-Ip")
+	if addr == "" {
+		addr = req.Header.Get("X-Forwarded-For")
+	}
+	if addr == "" {
+		addr = req.RemoteAddr
+	}
+	return addr
+}
+
 func (s *Handler) ServeHTTP(r http.ResponseWriter, req *http.Request) {
+	remote_addr := getRemoteAddr(req)
+
 	if (req.URL.Path == "/") && (req.Method == http.MethodGet) {
-		s.Log.Info().Msg("probe")
+		s.Log.Info().Str("remote_addr", remote_addr).Msg("probe")
 		r.WriteHeader(http.StatusOK)
 		return
 	}
@@ -122,7 +135,12 @@ func (s *Handler) ServeHTTP(r http.ResponseWriter, req *http.Request) {
 
 	desc, err := s.parseDescription(res, req)
 	{
-		l := l.With().Str("url", req.URL.String()).Str("method", req.Method).Logger()
+		l := l.With().
+			Str("remote_addr", remote_addr).
+			Str("url", req.URL.String()).
+			Str("method", req.Method).
+			Logger()
+
 		if err != nil {
 			l.Warn().Dur("dt", time.Since(t0)).Int("status", res.status_code).Msg("REQ " + err.Error())
 			return
