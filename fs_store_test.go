@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -74,9 +75,36 @@ func TestFsStore(t *testing.T) {
 		_, err = os.Stat(work)
 		require.NoError(err)
 	})
+
+	t.Run("store cannot be closed if the work left", func(t *testing.T) {
+		require := require.New(t)
+
+		store, err := main.NewFsStore(t.TempDir())
+		require.NoError(err)
+
+		r, w := io.Pipe()
+		go store.Put(context.Background(), DescriptionFoo, r)
+
+		time.Sleep(time.Millisecond * 10)
+		err = store.Close()
+		require.ErrorContains(err, "not empty")
+
+		w.Close()
+		time.Sleep(time.Millisecond * 10)
+		err = store.Close()
+		require.NoError(err)
+	})
 }
 
-func TestFsStoreFail(t *testing.T) {
+func TestNewFsStore(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// TODO:
+		// `NewFsStore` function checks whether a file can be created in the working directory.
+		// In this test, `NewFsStore`'s check failure is reproduced with Permission,
+		// but it does not work on Windows (probably because it uses a different form of access control than Unix).
+		t.Skip("Skipping test on Windows")
+	}
+
 	t.Run("it cannot create store directory", func(t *testing.T) {
 		require := require.New(t)
 
@@ -108,24 +136,5 @@ func TestFsStoreFail(t *testing.T) {
 
 		_, err = main.NewFsStore(root, main.WithWorkDir(t.TempDir()))
 		require.ErrorContains(err, "rename file")
-	})
-
-	t.Run("store cannot be closed if the work left", func(t *testing.T) {
-		require := require.New(t)
-
-		store, err := main.NewFsStore(t.TempDir())
-		require.NoError(err)
-
-		r, w := io.Pipe()
-		go store.Put(context.Background(), DescriptionFoo, r)
-
-		time.Sleep(time.Millisecond * 10)
-		err = store.Close()
-		require.ErrorContains(err, "not empty")
-
-		w.Close()
-		time.Sleep(time.Millisecond * 10)
-		err = store.Close()
-		require.NoError(err)
 	})
 }

@@ -135,8 +135,9 @@ func (s *fsStore) Put(ctx context.Context, desc Description, r io.Reader) error 
 		return fmt.Errorf("create temp file: %w", err)
 	}
 
-	defer f.Close()
-	if _, err := io.Copy(f, r); err != nil {
+	_, err = io.Copy(f, r)
+	f.Close()
+	if err != nil {
 		return err
 	}
 
