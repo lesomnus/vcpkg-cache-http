@@ -162,7 +162,7 @@ Store:
 			return nil, fmt.Errorf("parse store config: %w", err)
 		}
 
-		conf.Store = store
+		conf_given.Store = store
 
 	default:
 		return nil, errors.New("expected only 1 positional argument")
