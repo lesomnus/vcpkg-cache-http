@@ -190,6 +190,40 @@ func TestParseArgs(t *testing.T) {
 		require.Equal(expected, conf)
 	})
 
+	t.Run("config on command line", func(t *testing.T) {
+		require := require.New(t)
+
+		expected := &main.AppConfig{
+			Host: "bar",
+			Port: 1234,
+
+			Store: &main.StoreConfig{
+				Kind: "files",
+				Path: "store-data-here",
+				Opts: map[string]string{},
+			},
+
+			NoColor: true,
+			LogJson: true,
+
+			ReadOnly:  true,
+			WriteOnly: false,
+		}
+
+		conf, err := main.ParseArgs([]string{
+			"",
+			"-host", "bar",
+			"-port", "1234",
+			"-no-color",
+			"-log-json",
+			"-read-only",
+			"files:store-data-here",
+		})
+		require.NoError(err)
+		require.NotNil(conf)
+		require.Equal(expected, conf)
+	})
+
 	t.Run("read config from file", func(t *testing.T) {
 		require := require.New(t)
 
